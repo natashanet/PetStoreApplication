@@ -47,5 +47,5 @@ Database Connection
 
 How to start the project?
 
-    To start the application run the following file MainApplication
+    To start the application run the MainApplication.main() in the following file MainApplication.java.
 
