@@ -4,6 +4,7 @@ import com.c.application.model.*;
 import com.c.application.repo.PetRepository;
 import com.c.application.repo.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -40,31 +41,40 @@ public class PetStoreService {
     }
 
     @Transactional
-    public void buyPets() {
+    public synchronized void buyPets() {
         List<Owner> users = userRepository.findAll();
         int successfulBuys = 0;
         int failedBuys = 0;
 
         for (Owner user : users) {
-            double userBudget = user.getBudget();
+            if (isUserAssignedToPet(user)) {
+                continue;
+            }
 
+            double userBudget = user.getBudget();
             List<Pet> pets = petRepository.findAll();
             for (Pet pet : pets) {
                 double petPrice = pet.getPrice();
 
                 if (userBudget >= petPrice && pet.getOwner() == null) {
-                    user.setBudget(userBudget - petPrice);
-                    pet.setOwner(user);
-                    petRepository.save(pet);
-                    successfulBuys++;
-                    logBuyHistory(successfulBuys, failedBuys);
+                    try {
+                        user.setBudget(userBudget - petPrice);
+                        pet.setOwner(user);
+                        petRepository.save(pet);
+                        successfulBuys++;
+                        logBuyHistory(successfulBuys, failedBuys);
 
-                    if (pet instanceof Cat) {
-                        ((Cat) pet).calculatePrice();
-                        System.out.println("Meow, cat " + pet.getName() + " has owner " + user.getFirstName());
-                    } else if (pet instanceof Dog) {
-                        ((Dog) pet).calculatePrice();
-                        System.out.println("Woof, dog " + pet.getName() + " has owner " + user.getFirstName());
+                        if (pet instanceof Cat) {
+                            ((Cat) pet).calculatePrice();
+                            System.out.println("Meow, cat " + pet.getName() + " has owner " + user.getFirstName());
+                        } else if (pet instanceof Dog) {
+                            ((Dog) pet).calculatePrice();
+                            System.out.println("Woof, dog " + pet.getName() + " has owner " + user.getFirstName());
+                        }
+                        break;
+                    } catch (DataIntegrityViolationException e) {
+                        failedBuys++;
+                        logBuyHistory(successfulBuys, failedBuys);
                     }
                 } else {
                     failedBuys++;
@@ -73,6 +83,11 @@ public class PetStoreService {
             }
             userRepository.save(user);
         }
+    }
+
+    private boolean isUserAssignedToPet(Owner user) {
+        List<Pet> pets = petRepository.findByOwner(user);
+        return !pets.isEmpty();
     }
 
 
