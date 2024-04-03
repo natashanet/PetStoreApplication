@@ -29,6 +29,7 @@ Testing
 
 GitHub Steps - Guide
 
+    Command for cloning the repository: git clone https://github.com/natashanet/PetStoreApplication.git
     Fork the repository.
     Create a new branch.
     Commit your changes.
